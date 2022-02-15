@@ -1,0 +1,7 @@
+*.swp
+*.bck
+*.old
+.terraform
+*.zip
+*.tar.gz
+**.terraform.lock.hcl
