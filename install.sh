@@ -9,7 +9,7 @@ sudo timedatectl set-timezone Europe/Amsterdam
 # Install needed components and configure crontab with correct schedule
 sudo yum -y install git
 sudo pip3 install oci oci-cli
-git clone https://github.com/AnykeyNL/OCI-AutoScale.git
-cd OCI-AutoScale/
+git clone https://github.com/TheDosah/AutoScale.git
+cd AutoScale/
 sed -i 's/UseInstancePrinciple = False/UseInstancePrinciple = True/g' AutoScaleALL.py
 crontab schedule.cron
