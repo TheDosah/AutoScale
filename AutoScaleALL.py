@@ -693,45 +693,91 @@ def autoscale_region(region):
                     # Instance
                     ###################################################################################
                     if resource.resource_type == "Instance":
-                        if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
-                            # Only perform action if VM Instance, ignoring any BM instances.
-                            if resourceDetails.shape[:2] == "VM":
-                                if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) == 0:
-                                    if Action == "All" or Action == "Down":
-                                        MakeLog(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
-                                        Retry = True
-                                        while Retry:
-                                            try:
-                                                response = compute.instance_action(instance_id=resource.identifier, action=ComputeShutdownMethod)
-                                                Retry = False
-                                                success.append(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
-                                            except oci.exceptions.ServiceError as response:
-                                                if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
-                                                    time.sleep(RateLimitDelay)
-                                                else:
-                                                    ErrorsFound = True
-                                                    errors.append(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                    Retry = False
+                        # Only perform action if VM Instance, ignoring any BM instances.
+                        if resourceDetails.shape[:2] == "VM":
+                            ######## WAIT UNTIL THE INSTANCE HAS A VALID STATE (RUNNING OR STOPPED) ########
+                            while (compute.get_instance(resource.identifier).data.lifecycle_state.upper() != "RUNNING" and compute.get_instance(resource.identifier).data.lifecycle_state.upper() != "STOPPED") :
+                                time.sleep(5)
 
-                                if resourceDetails.lifecycle_state == "STOPPED" and int(schedulehours[CurrentHour]) == 1:
-                                    if Action == "All" or Action == "Up":
-                                        MakeLog(" - Initiate Compute VM startup for {}".format(resource.display_name))
-                                        Retry = True
-                                        while Retry:
-                                            try:
-                                                response = compute.instance_action(instance_id=resource.identifier, action="START")
+                            ######## SHUTDOWN ########    
+                            if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) == 0:
+                                MakeLog(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
+                                Retry = True
+                                while Retry:
+                                    try:
+                                        response = compute.instance_action(instance_id=resource.identifier, action=ComputeShutdownMethod)
+                                        Retry = False
+                                        success.append(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
+                                    except oci.exceptions.ServiceError as response:
+                                        if response.status == 429:
+                                            MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                            time.sleep(RateLimitDelay)
+                                        else:
+                                            ErrorsFound = True
+                                            errors.append(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                            MakeLog(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                            Retry = False
+
+                            ######## SCALE UP/DOWN ########
+                            if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) != 0:
+                                if int(resourceDetails.shape_config.ocpus) != int(schedulehours[CurrentHour]) :
+                                    MakeLog(" - Initiate Compute VM scale for {}".format(resource.display_name))
+                                    Retry = True
+                                    while Retry:
+                                        try:
+                                            response = compute.update_instance(instance_id=resource.identifier, update_instance_details=oci.core.models.UpdateInstanceDetails(shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(ocpus=int(schedulehours[CurrentHour]),memory_in_gbs=int(resourceDetails.shape_config.memory_in_gbs))))
+                                            Retry = False
+                                            success.append(" - Initiate Compute VM scale for {}".format(resource.display_name))
+                                        except oci.exceptions.ServiceError as response:
+                                            if response.status == 429:
+                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                time.sleep(RateLimitDelay)
+                                            else:
+                                                ErrorsFound = True
+                                                errors.append(" - Error ({}) Compute VM scale for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeLog(" - Error ({}) Compute VM scale for {} - {}".format(response.status, resource.display_name, response.message))
+                                                Retry = False                    
+
+                            if resourceDetails.lifecycle_state == "STOPPED" and int(schedulehours[CurrentHour]) > 0:
+
+                                ######## START AND SCALE UP/DOWN ########
+                                if int(resourceDetails.shape_config.ocpus) != int(schedulehours[CurrentHour]) :
+                                    MakeLog(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
+                                    Retry = True
+                                    while Retry:
+                                        try:
+                                            response = compute.instance_action(instance_id=resource.identifier, action="START")
+                                            while compute.get_instance(resource.identifier).data.lifecycle_state != "RUNNING" :
+                                                time.sleep(5)
+                                            response = compute.update_instance(instance_id=resource.identifier, update_instance_details=oci.core.models.UpdateInstanceDetails(shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(ocpus=int(schedulehours[CurrentHour]),memory_in_gbs=int(resourceDetails.shape_config.memory_in_gbs))))
+                                            Retry = False
+                                            success.append(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
+                                        except oci.exceptions.ServiceError as response:
+                                            if response.status == 429:
+                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                time.sleep(RateLimitDelay)
+                                            else:
+                                                ErrorsFound = True
+                                                errors.append(" - Error ({}) Compute VM startup and scale for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
-                                                success.append(" - Initiate Compute VM startup for {}".format(resource.display_name))
-                                            except oci.exceptions.ServiceError as response:
-                                                if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
-                                                    time.sleep(RateLimitDelay)
-                                                else:
-                                                    ErrorsFound = True
-                                                    errors.append(" - Error ({}) Compute VM startup for {} - {}".format(response.status, resource.display_name, response.message))
-                                                    Retry = False
+
+                                ######## START ########
+                                if int(resourceDetails.shape_config.ocpus) == int(schedulehours[CurrentHour]) :  
+                                    MakeLog(" - Initiate Compute VM startup for {}".format(resource.display_name))
+                                    Retry = True
+                                    while Retry:
+                                        try:
+                                            response = compute.instance_action(instance_id=resource.identifier, action="START")
+                                            Retry = False
+                                            success.append(" - Initiate Compute VM startup for {}".format(resource.display_name))
+                                        except oci.exceptions.ServiceError as response:
+                                            if response.status == 429:
+                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                time.sleep(RateLimitDelay)
+                                            else:
+                                                ErrorsFound = True
+                                                errors.append(" - Error ({}) Compute VM startup for {} - {}".format(response.status, resource.display_name, response.message))
+                                                Retry = False              
 
                     ###################################################################################
                     # DBSystem
