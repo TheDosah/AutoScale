@@ -554,8 +554,6 @@ def autoscale_region(region):
                 mysql_instances = []
                 continue
 
-            MakeLog(".", True)
-
             for mysql_instance in mysql_instances:
                 if PredefinedTag not in mysql_instance.defined_tags or mysql_instance.lifecycle_state != "ACTIVE":
                     continue
