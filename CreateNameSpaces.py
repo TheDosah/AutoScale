@@ -22,7 +22,7 @@ def MakeLog(msg):
 if UseInstancePrinciple:
     userName = "Instance Principle"
     try:
-        url = "http://10.211.1.211/opc/v1/instance/"
+        url = "http://169.254.169.254/opc/v1/instance/"
         data = requests.get(url).json()
     except:
         MakeLog("This instance is not running on OCI or does not have Instance Principle permissions")

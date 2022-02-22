@@ -629,9 +629,6 @@ def autoscale_region(region):
         if resource.resource_type == "DISWorkspace":
             resourceDetails = dataintegration.get_workspace(workspace_id=resource.identifier, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY).data
             resourceOk = True
-        if resource.resource_type == "VisualBuilderInstance":
-            resourceDetails = visualbuilder.get_vb_instance(vb_instance_id=resource.identifier, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY).data
-            resourceOk = True
 
         if not isDeleted(resource.lifecycle_state) and resourceOk:
             schedule = resourceDetails.defined_tags[PredefinedTag]
@@ -1556,57 +1553,7 @@ def autoscale_region(region):
                                                     response.status, resource.display_name, response.message))
                                                 Retry = False
 
-                   ###################################################################################
-                    # Visual Builder (OCI Native version)
-                    ###################################################################################
-                    if resource.resource_type == "VisualBuilderInstance":
-                        if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
-                            if resourceDetails.lifecycle_state == "ACTIVE" and int(
-                                    schedulehours[CurrentHour]) == 0:
-                                if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate Visual Builder shutdown for {}".format(resource.display_name))
-                                    Retry = True
-                                    while Retry:
-                                        try:
-                                            response = visualbuilder.stop_vb_instance(vb_instance_id=resource.identifier)
-                                            Retry = False
-                                            success.append(" - Initiate Builder shutdown for {}".format(
-                                                resource.display_name))
-                                        except oci.exceptions.ServiceError as response:
-                                            if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(
-                                                    RateLimitDelay))
-                                                time.sleep(RateLimitDelay)
-                                            else:
-                                                ErrorsFound = True
-                                                errors.append(
-                                                    " - Error ({}) Visual Builder Shutdown for {} - {}".format(
-                                                        response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Visual Builder Shutdown for {} - {}".format(
-                                                    response.status, resource.display_name, response.message))
-                                                Retry = False
-
-                            if resourceDetails.lifecycle_state == "INACTIVE" and int(
-                                    schedulehours[CurrentHour]) == 1:
-                                if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate Visual Builder startup for {}".format(resource.display_name))
-                                    Retry = True
-                                    while Retry:
-                                        try:
-                                            response = visualbuilder.start_vb_instance(vb_instance_id=resource.identifier)
-                                            Retry = False
-                                            success.append(" - Initiate Visual Builder startup for {}".format(
-                                                resource.display_name))
-                                        except oci.exceptions.ServiceError as response:
-                                            if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(
-                                                    RateLimitDelay))
-                                                time.sleep(RateLimitDelay)
-                                            else:
-                                                ErrorsFound = True
-                                                errors.append(" - Error ({}) Visual Builder startup for {} - {}".format(
-                                                    response.status, resource.display_name, response.message))
-                                                Retry = False
+                   
 
     ###################################################################################
     # Wait for any AutonomousDB and Instance Pool Start and rescale tasks completed
@@ -1623,7 +1570,7 @@ def autoscale_region(region):
 # Get Command Line Parser
 parser = argparse.ArgumentParser()
 parser.add_argument('-t', default="", dest='config_profile', help='Config file section to use (tenancy profile)')
-parser.add_argument('-ip', action='store_true', default=False, dest='is_instance_principals', help='Use Instance Principals for Authentication')
+parser.add_argument('-ip', action='store_true', default=True, dest='is_instance_principals', help='Use Instance Principals for Authentication')
 parser.add_argument('-dt', action='store_true', default=False, dest='is_delegation_token', help='Use Delegation Token for Authentication')
 parser.add_argument('-a', default="All", dest='action', help='Action All, Down, Up')
 parser.add_argument('-tag', default="Schedule", dest='tag', help='Tag to examine, Default=Schedule')
@@ -1729,7 +1676,6 @@ for region_name in [str(es.region_name) for es in regions]:
     mysql = oci.mysql.DbSystemClient(config, signer=signer)
     goldengate = oci.golden_gate.GoldenGateClient(config, signer=signer)
     dataintegration = oci.data_integration.DataIntegrationClient(config, signer=signer)
-    visualbuilder = oci.visual_builder.VbInstanceClient(config, signer=signer)
 
     ###############################################
     # Run Scale Region
