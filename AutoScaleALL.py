@@ -234,11 +234,18 @@ def create_signer(config_profile, is_instance_principals, is_delegation_token):
 ##########################################################################
 def MakeLog(msg, no_end=False):
     if no_end:
-        print(msg, end="")
+        original_stdout = sys.stdout # Save a reference to the original standard output
+        with open('log.txt', 'w') as f:
+            sys.stdout = f # Change the standard output to the file we created.
+            print(msg, end="")
+            sys.stdout = original_stdout # Reset the standard output to its original value
     else:
-        print(msg)
-
-
+        original_stdout = sys.stdout # Save a reference to the original standard output
+        with open('log.txt', 'w') as f:
+            sys.stdout = f # Change the standard output to the file we created.
+            print(msg)
+            sys.stdout = original_stdout # Reset the standard output to its original value
+            
 ##########################################################################
 # isWeekDay
 ##########################################################################
