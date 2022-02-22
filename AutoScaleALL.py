@@ -699,13 +699,13 @@ def autoscale_region(region):
                             ######## SHUTDOWN ########    
                             if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) == 0:
                                 MakeOut(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
+                                MakeLog("[STOP] Instance {}".format(resource.display_name))
                                 Retry = True
                                 while Retry:
                                     try:
                                         response = compute.instance_action(instance_id=resource.identifier, action=ComputeShutdownMethod)
                                         Retry = False
-                                        success.append(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
-                                        MakeLog("[STOP] Instance {}".format(resource.display_name))
+                                        success.append(" - Initiate Compute VM shutdown for {}".format(resource.display_name))  
                                     except oci.exceptions.ServiceError as response:
                                         if response.status == 429:
                                             MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
@@ -720,13 +720,13 @@ def autoscale_region(region):
                             if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) != 0:
                                 if int(resourceDetails.shape_config.ocpus) != int(schedulehours[CurrentHour]) :
                                     MakeOut(" - Initiate Compute VM scale for {}".format(resource.display_name))
+                                    MakeLog("[SCALE] Instance {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
                                             response = compute.update_instance(instance_id=resource.identifier, update_instance_details=oci.core.models.UpdateInstanceDetails(shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(ocpus=int(schedulehours[CurrentHour]),memory_in_gbs=int(resourceDetails.shape_config.memory_in_gbs))))
                                             Retry = False
                                             success.append(" - Initiate Compute VM scale for {}".format(resource.display_name))
-                                            MakeLog("[SCALE] Instance {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
                                                 MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
@@ -742,6 +742,7 @@ def autoscale_region(region):
                                 ######## START AND SCALE UP/DOWN ########
                                 if int(resourceDetails.shape_config.ocpus) != int(schedulehours[CurrentHour]) :
                                     MakeOut(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
+                                    MakeLog("[START | SCALE] Instance {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -751,7 +752,6 @@ def autoscale_region(region):
                                             response = compute.update_instance(instance_id=resource.identifier, update_instance_details=oci.core.models.UpdateInstanceDetails(shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(ocpus=int(schedulehours[CurrentHour]),memory_in_gbs=int(resourceDetails.shape_config.memory_in_gbs))))
                                             Retry = False
                                             success.append(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
-                                            MakeLog("[START | SCALE] Instance {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
                                                 MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
@@ -764,14 +764,13 @@ def autoscale_region(region):
                                 ######## START ########
                                 if int(resourceDetails.shape_config.ocpus) == int(schedulehours[CurrentHour]) :  
                                     MakeOut(" - Initiate Compute VM startup for {}".format(resource.display_name))
+                                    MakeLog("[START] Instance {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
                                             response = compute.instance_action(instance_id=resource.identifier, action="START")
                                             Retry = False
                                             success.append(" - Initiate Compute VM startup for {}".format(resource.display_name))
-                                            MakeLog(" - Initiate Compute VM startup for {}".format(resource.display_name))
-                                            MakeLog("[START] Instance {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
                                                 MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
