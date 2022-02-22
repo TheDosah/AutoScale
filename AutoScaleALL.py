@@ -33,6 +33,7 @@ import time
 import sys
 import argparse
 import os
+import logging
 
 # You can modify / translate the tag names used by this script - case sensitive!!!
 AnyDay = "AnyDay"
@@ -233,19 +234,9 @@ def create_signer(config_profile, is_instance_principals, is_delegation_token):
 # Configure logging output
 ##########################################################################
 def MakeLog(msg, no_end=False):
-    if no_end:
-        original_stdout = sys.stdout # Save a reference to the original standard output
-        with open('log.txt', 'w') as f:
-            sys.stdout = f # Change the standard output to the file we created.
-            print(msg, end="")
-            sys.stdout = original_stdout # Reset the standard output to its original value
-    else:
-        original_stdout = sys.stdout # Save a reference to the original standard output
-        with open('log.txt', 'w') as f:
-            sys.stdout = f # Change the standard output to the file we created.
-            print(msg)
-            sys.stdout = original_stdout # Reset the standard output to its original value
-            
+    logging.basicConfig(filename='log.log' format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    logging.warning(msg)
+
 ##########################################################################
 # isWeekDay
 ##########################################################################
