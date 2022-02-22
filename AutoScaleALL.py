@@ -234,7 +234,7 @@ def create_signer(config_profile, is_instance_principals, is_delegation_token):
 # Configure logging output
 ##########################################################################
 def MakeLog(msg, no_end=False):
-    logging.basicConfig(filename='log.log' format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    logging.basicConfig(filename='log.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     logging.warning(msg)
 
 ##########################################################################
