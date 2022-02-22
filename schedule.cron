@@ -1,1 +1,1 @@
-0 * * * * python3 /home/opc/OCI-AutoScale/AutoScaleALL.py
+0 * * * * python3 /home/opc/AutoScale/AutoScaleALL.py
