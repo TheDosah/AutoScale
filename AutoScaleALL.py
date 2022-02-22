@@ -64,10 +64,10 @@ current_utc_time = datetime.datetime.utcnow()
 ##########################################################################
 def print_header(name):
     chars = int(90)
-    MakeLog("")
-    MakeLog('#' * chars)
-    MakeLog("#" + name.center(chars - 2, " ") + "#")
-    MakeLog('#' * chars)
+    MakeOut("")
+    MakeOut('#' * chars)
+    MakeOut("#" + name.center(chars - 2, " ") + "#")
+    MakeOut('#' * chars)
 
 
 ##########################################################################
@@ -190,8 +190,8 @@ def create_signer(config_profile, is_instance_principals, is_delegation_token):
 
             # check if file exist
             if env_config_file is None or env_config_section is None:
-                MakeLog("*** OCI_CONFIG_FILE and OCI_CONFIG_PROFILE env variables not found, abort. ***")
-                MakeLog("")
+                MakeOut("*** OCI_CONFIG_FILE and OCI_CONFIG_PROFILE env variables not found, abort. ***")
+                MakeOut("")
                 raise SystemExit
 
             config = oci.config.from_file(env_config_file, env_config_section)
@@ -205,7 +205,7 @@ def create_signer(config_profile, is_instance_principals, is_delegation_token):
                 return config, signer
 
         except KeyError:
-            MakeLog("* Key Error obtaining delegation_token_file")
+            MakeOut("* Key Error obtaining delegation_token_file")
             raise SystemExit
 
         except Exception:
@@ -233,9 +233,14 @@ def create_signer(config_profile, is_instance_principals, is_delegation_token):
 ##########################################################################
 # Configure logging output
 ##########################################################################
-def MakeLog(msg, no_end=False):
-    logging.basicConfig(filename='log.log', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+def MakeOut(msg, no_end=False):
+    logging.basicConfig(filename='log.out', format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     logging.warning(msg)
+    
+def MakeLog(msg, no_end=False):
+    file_path = 'log.log'
+    sys.stdout = open(file_path, "w")
+    print(msg)  
 
 ##########################################################################
 # isWeekDay
@@ -263,8 +268,8 @@ def isDeleted(state):
             deleted = True
     except Exception:
         deleted = True
-        MakeLog("No lifecyclestate found, ignoring resource")
-        MakeLog(state)
+        MakeOut("No lifecyclestate found, ignoring resource")
+        MakeOut(state)
 
     return deleted
 
@@ -287,7 +292,7 @@ class AutonomousThread(threading.Thread):
         global errors
         global success
 
-        MakeLog(" - Starting Autonomous DB {} and after that scaling to {} cpus".format(self.NAME, self.CPU))
+        MakeOut(" - Starting Autonomous DB {} and after that scaling to {} cpus".format(self.NAME, self.CPU))
         Retry = True
         while Retry:
             try:
@@ -296,7 +301,7 @@ class AutonomousThread(threading.Thread):
                 success.append("Started Autonomous DB {}".format(self.NAME))
             except oci.exceptions.ServiceError as response:
                 if response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
                     ErrorsFound = True
@@ -309,7 +314,7 @@ class AutonomousThread(threading.Thread):
         while response.data.lifecycle_state != "AVAILABLE":
             response = database.get_autonomous_database(autonomous_database_id=self.ID, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
             time.sleep(10)
-        MakeLog("Autonomous DB {} started, re-scaling to {} cpus".format(self.NAME, self.CPU))
+        MakeOut("Autonomous DB {} started, re-scaling to {} cpus".format(self.NAME, self.CPU))
         dbupdate = oci.database.models.UpdateAutonomousDatabaseDetails()
         dbupdate.cpu_core_count = self.CPU
 
@@ -321,7 +326,7 @@ class AutonomousThread(threading.Thread):
                 success.append("Autonomous DB {} started, re-scaling to {} cpus".format(self.NAME, self.CPU))
             except oci.exceptions.ServiceError as response:
                 if response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
                     errors.append(" - Error ({}) re-scaling to {} cpus for {}".format(response.status, self.CPU, self.NAME))
@@ -346,7 +351,7 @@ class PoolThread(threading.Thread):
         global errors
         global success
 
-        MakeLog(" - Starting Instance Pool {} and after that scaling to {} instances".format(self.NAME, self.INSTANCES))
+        MakeOut(" - Starting Instance Pool {} and after that scaling to {} instances".format(self.NAME, self.INSTANCES))
         Retry = True
         while Retry:
             try:
@@ -355,7 +360,7 @@ class PoolThread(threading.Thread):
                 success.append(" - Starting Instance Pool {}".format(self.NAME))
             except oci.exceptions.ServiceError as response:
                 if response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
                     errors.append(" - Error ({}) starting instance pool {}".format(response.status, self.NAME))
@@ -366,7 +371,7 @@ class PoolThread(threading.Thread):
         while response.data.lifecycle_state != "RUNNING":
             response = pool.get_instance_pool(instance_pool_id=self.ID, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
             time.sleep(10)
-        MakeLog("Instance pool {} started, re-scaling to {} instances".format(self.NAME, self.INSTANCES))
+        MakeOut("Instance pool {} started, re-scaling to {} instances".format(self.NAME, self.INSTANCES))
         pooldetails = oci.core.models.UpdateInstancePoolDetails()
         pooldetails.size = self.INSTANCES
 
@@ -378,7 +383,7 @@ class PoolThread(threading.Thread):
                 success.append("Rescaling Instance Pool {} to {} instances".format(self.NAME, self.INSTANCES))
             except oci.exceptions.ServiceError as response:
                 if response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
                     ErrorsFound = True
@@ -404,7 +409,7 @@ class AnalyticsThread(threading.Thread):
         global errors
         global success
 
-        MakeLog(" - Starting Analytics Service {} and after that scaling to {} cpus".format(self.NAME, self.CPU))
+        MakeOut(" - Starting Analytics Service {} and after that scaling to {} cpus".format(self.NAME, self.CPU))
         Retry = True
         while Retry:
             try:
@@ -413,7 +418,7 @@ class AnalyticsThread(threading.Thread):
                 success.append("Started Analytics Service {}".format(self.NAME))
             except oci.exceptions.ServiceError as response:
                 if response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
                     ErrorsFound = True
@@ -425,7 +430,7 @@ class AnalyticsThread(threading.Thread):
         while response.data.lifecycle_state != "ACTIVE":
             response = analytics.get_analytics_instance(analytics_instance_id=self.ID, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
             time.sleep(10)
-        MakeLog("Analytics Service {} started, re-scaling to {} cpus".format(self.NAME, self.CPU))
+        MakeOut("Analytics Service {} started, re-scaling to {} cpus".format(self.NAME, self.CPU))
         capacity = oci.analytics.models.capacity.Capacity()
         capacity.capacity_value = self.CPU
         capacity.capacity_type = capacity.CAPACITY_TYPE_OLPU_COUNT
@@ -439,7 +444,7 @@ class AnalyticsThread(threading.Thread):
                 success.append("Analytics Service {} started, re-scaling to {} cpus".format(self.NAME, self.CPU))
             except oci.exceptions.ServiceError as response:
                 if response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
                     errors.append("Error ({}) re-scaling Analytics to {} cpus for {}".format(response.status, self.CPU, self.NAME))
@@ -451,7 +456,7 @@ class AnalyticsThread(threading.Thread):
 ##########################################################################
 def identity_read_compartments(identity, tenancy):
 
-    MakeLog("Loading Compartments...")
+    MakeOut("Loading Compartments...")
     try:
         cs = oci.pagination.list_call_get_all_results(
             identity.list_compartments,
@@ -467,7 +472,7 @@ def identity_read_compartments(identity, tenancy):
         tenant_compartment.lifecycle_state = oci.identity.models.Compartment.LIFECYCLE_STATE_ACTIVE
         cs.append(tenant_compartment)
 
-        MakeLog("    Total " + str(len(cs)) + " compartments loaded.")
+        MakeOut("    Total " + str(len(cs)) + " compartments loaded.")
         return cs
 
     except Exception as e:
@@ -485,7 +490,7 @@ def autoscale_region(region):
     global errors
     global success
 
-    MakeLog("Starting Auto Scaling script on region {}, executing {} actions".format(region, Action))
+    MakeOut("Starting Auto Scaling script on region {}, executing {} actions".format(region, Action))
 
     threads = []  # Thread array for async AutonomousDB start and rescale
     tcount = 0
@@ -496,11 +501,11 @@ def autoscale_region(region):
     DayOfWeek, Day, CurrentHour = get_current_hour(region, cmd.ignore_region_time)
 
     if AlternativeWeekend:
-        MakeLog("Using Alternative weekend (Friday and Saturday as weekend")
+        MakeOut("Using Alternative weekend (Friday and Saturday as weekend")
     if cmd.ignore_region_time:
-        MakeLog("Ignoring Region Datetime, Using local time")
+        MakeOut("Ignoring Region Datetime, Using local time")
 
-    MakeLog("Day of week: {}, IsWeekday: {},  Current hour: {}".format(Day, isWeekDay(DayOfWeek), CurrentHour))
+    MakeOut("Day of week: {}, IsWeekday: {},  Current hour: {}".format(Day, isWeekDay(DayOfWeek), CurrentHour))
 
     # Array start with 0 so decrease CurrentHour with 1, if hour = 0 then 23
     CurrentHour = 23 if CurrentHour == 0 else CurrentHour - 1
@@ -508,7 +513,7 @@ def autoscale_region(region):
     ###############################################
     # Find all resources with a Schedule Tag
     ###############################################
-    MakeLog("Getting all resources supported by the search function...")
+    MakeOut("Getting all resources supported by the search function...")
     query = "query all resources where (definedTags.namespace = '{}')".format(PredefinedTag)
     query += " && compartmentId  = '" + compartment_include + "'" if compartment_include else ""
     query += " && compartmentId != '" + compartment_exclude + "'" if compartment_exclude else ""
@@ -529,7 +534,7 @@ def autoscale_region(region):
     #################################################################
     if not cmd.ignoremysql:
 
-        MakeLog("Finding MySQL instances in {} Compartments...".format(len(compartments)))
+        MakeOut("Finding MySQL instances in {} Compartments...".format(len(compartments)))
         for c in compartments:
 
             # check compartment include and exclude
@@ -550,7 +555,7 @@ def autoscale_region(region):
                     retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
                 ).data
             except Exception:
-                MakeLog("e", True)
+                MakeOut("e", True)
                 mysql_instances = []
                 continue
 
@@ -569,7 +574,7 @@ def autoscale_region(region):
                 summary.resource_type = "MysqlDBInstance"
                 result.items.append(summary)
 
-        MakeLog("")
+        MakeOut("")
 
     #################################################################
     # All the items with a schedule are now collected.
@@ -578,16 +583,16 @@ def autoscale_region(region):
 
     total_resources += len(result.items)
 
-    MakeLog("")
-    MakeLog("Checking {} Resources for Auto Scale...".format(len(result.items)))
+    MakeOut("")
+    MakeOut("Checking {} Resources for Auto Scale...".format(len(result.items)))
 
     for resource in result.items:
         # The search data is not always updated. Get the tags from the actual resource itself, not using the search data.
         resourceOk = False
         if cmd.print_ocid:
-            MakeLog("Checking {} ({}) - {}...".format(resource.display_name, resource.resource_type, resource.identifier))
+            MakeOut("Checking {} ({}) - {}...".format(resource.display_name, resource.resource_type, resource.identifier))
         else:
-            MakeLog("Checking {} ({})...".format(resource.display_name, resource.resource_type))
+            MakeOut("Checking {} ({})...".format(resource.display_name, resource.resource_type))
 
         if resource.resource_type == "Instance":
             resourceDetails = compute.get_instance(instance_id=resource.identifier, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY).data
@@ -651,16 +656,16 @@ def autoscale_region(region):
                     if len(schedulehours) != 24:
                         ErrorsFound = True
                         errors.append(" - Error with schedule of {} - {}, not correct amount of hours, I count {}".format(resource.display_name, ActiveSchedule, len(schedulehours)))
-                        MakeLog(" - Error with schedule of {} - {}, not correct amount of hours, i count {}".format(resource.display_name, ActiveSchedule, len(schedulehours)))
+                        MakeOut(" - Error with schedule of {} - {}, not correct amount of hours, i count {}".format(resource.display_name, ActiveSchedule, len(schedulehours)))
                         ActiveSchedule = ""
                 except Exception:
                     ErrorsFound = True
                     ActiveSchedule = ""
                     errors.append(" - Error with schedule for {}".format(resource.display_name))
-                    MakeLog(" - Error with schedule of {}".format(resource.display_name))
-                    MakeLog(sys.exc_info()[0])
+                    MakeOut(" - Error with schedule of {}".format(resource.display_name))
+                    MakeOut(sys.exc_info()[0])
             else:
-                MakeLog(" - Ignoring instance, as no active schedule for today found")
+                MakeOut(" - Ignoring instance, as no active schedule for today found")
 
             ###################################################################################
             # if schedule validated, let see if we can apply the new schedule to the resource
@@ -676,10 +681,10 @@ def autoscale_region(region):
                         DisplaySchedule = DisplaySchedule + h + ","
                     c = c + 1
 
-                MakeLog(" - Active schedule for {}: {}".format(resource.display_name, DisplaySchedule))
+                MakeOut(" - Active schedule for {}: {}".format(resource.display_name, DisplaySchedule))
 
                 if schedulehours[CurrentHour] == "*":
-                    MakeLog(" - Ignoring this service for this hour")
+                    MakeOut(" - Ignoring this service for this hour")
 
                 else:
                     ###################################################################################
@@ -694,27 +699,29 @@ def autoscale_region(region):
 
                             ######## SHUTDOWN ########    
                             if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) == 0:
-                                MakeLog(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
+                                MakeOut(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
+                                MakeLog("[STOP] Instance {}".format(resource.display_name))
                                 Retry = True
                                 while Retry:
                                     try:
                                         response = compute.instance_action(instance_id=resource.identifier, action=ComputeShutdownMethod)
                                         Retry = False
-                                        success.append(" - Initiate Compute VM shutdown for {}".format(resource.display_name))
+                                        success.append(" - Initiate Compute VM shutdown for {}".format(resource.display_name))  
                                     except oci.exceptions.ServiceError as response:
                                         if response.status == 429:
-                                            MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                            MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                             time.sleep(RateLimitDelay)
                                         else:
                                             ErrorsFound = True
                                             errors.append(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                            MakeLog(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                            MakeOut(" - Error ({}) Compute VM Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                             Retry = False
 
                             ######## SCALE UP/DOWN ########
                             if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) != 0:
                                 if int(resourceDetails.shape_config.ocpus) != int(schedulehours[CurrentHour]) :
-                                    MakeLog(" - Initiate Compute VM scale for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Compute VM scale for {}".format(resource.display_name))
+                                    MakeLog("[SCALE] Instance {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -723,19 +730,20 @@ def autoscale_region(region):
                                             success.append(" - Initiate Compute VM scale for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Compute VM scale for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Compute VM scale for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Compute VM scale for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False                    
 
                             if resourceDetails.lifecycle_state == "STOPPED" and int(schedulehours[CurrentHour]) > 0:
 
                                 ######## START AND SCALE UP/DOWN ########
                                 if int(resourceDetails.shape_config.ocpus) != int(schedulehours[CurrentHour]) :
-                                    MakeLog(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
+                                    MakeLog("[START | SCALE] Instance {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -747,7 +755,7 @@ def autoscale_region(region):
                                             success.append(" - Initiate Compute VM startup and scale for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
@@ -756,7 +764,8 @@ def autoscale_region(region):
 
                                 ######## START ########
                                 if int(resourceDetails.shape_config.ocpus) == int(schedulehours[CurrentHour]) :  
-                                    MakeLog(" - Initiate Compute VM startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Compute VM startup for {}".format(resource.display_name))
+                                    MakeLog("[START] Instance {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -765,7 +774,7 @@ def autoscale_region(region):
                                             success.append(" - Initiate Compute VM startup for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
@@ -783,7 +792,7 @@ def autoscale_region(region):
                                 if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
                                     if dbnodedetails.lifecycle_state == "AVAILABLE" and int(schedulehours[CurrentHour]) == 0:
                                         if Action == "All" or Action == "Down":
-                                            MakeLog(" - Initiate DB VM shutdown for {}".format(resource.display_name))
+                                            MakeOut(" - Initiate DB VM shutdown for {}".format(resource.display_name))
                                             Retry = True
                                             while Retry:
                                                 try:
@@ -792,7 +801,7 @@ def autoscale_region(region):
                                                     success.append(" - Initiate DB VM shutdown for {}".format(resource.display_name))
                                                 except oci.exceptions.ServiceError as response:
                                                     if response.status == 429:
-                                                        MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                        MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                         time.sleep(RateLimitDelay)
                                                     else:
                                                         ErrorsFound = True
@@ -800,7 +809,7 @@ def autoscale_region(region):
                                                         Retry = False
                                     if dbnodedetails.lifecycle_state == "STOPPED" and int(schedulehours[CurrentHour]) == 1:
                                         if Action == "All" or Action == "Up":
-                                            MakeLog(" - Initiate DB VM startup for {}".format(resource.display_name))
+                                            MakeOut(" - Initiate DB VM startup for {}".format(resource.display_name))
                                             Retry = True
                                             while Retry:
                                                 try:
@@ -809,7 +818,7 @@ def autoscale_region(region):
                                                     success.append(" - Initiate DB VM startup for {}".format(resource.display_name))
                                                 except oci.exceptions.ServiceError as response:
                                                     if response.status == 429:
-                                                        MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                        MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                         time.sleep(RateLimitDelay)
                                                     else:
                                                         ErrorsFound = True
@@ -823,7 +832,7 @@ def autoscale_region(region):
                             if int(schedulehours[CurrentHour]) > 1 and int(schedulehours[CurrentHour]) < 53:
                                 if resourceDetails.cpu_core_count > int(schedulehours[CurrentHour]):
                                     if Action == "All" or Action == "Down":
-                                        MakeLog(" - Initiate DB BM Scale Down to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
+                                        MakeOut(" - Initiate DB BM Scale Down to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
                                         dbupdate = oci.database.models.UpdateDbSystemDetails()
                                         dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
                                         Retry = True
@@ -836,21 +845,21 @@ def autoscale_region(region):
                                                                                                               resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) DB BM Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count,
                                                                                                                                     int(schedulehours[CurrentHour]),
                                                                                                                                     resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) DB BM Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count,
+                                                    MakeOut(" - Error ({}) DB BM Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count,
                                                                                                                               int(schedulehours[CurrentHour]),
                                                                                                                               resource.display_name, response.message))
                                                     Retry = False
 
                                 if resourceDetails.cpu_core_count < int(schedulehours[CurrentHour]):
                                     if Action == "All" or Action == "Up":
-                                        MakeLog(" - Initiate DB BM Scale UP to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
+                                        MakeOut(" - Initiate DB BM Scale UP to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
                                         dbupdate = oci.database.models.UpdateDbSystemDetails()
                                         dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
                                         Retry = True
@@ -863,12 +872,12 @@ def autoscale_region(region):
                                                                                                              resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) DB BM Scale UP from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) DB BM Scale UP from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                    MakeOut(" - Error ({}) DB BM Scale UP from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                     Retry = False
 
                         ###################################################################################
@@ -877,7 +886,7 @@ def autoscale_region(region):
                         if resourceDetails.shape[:7] == "Exadata":
                             if resourceDetails.cpu_core_count > int(schedulehours[CurrentHour]):
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate Exadata CS Scale Down from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]),
+                                    MakeOut(" - Initiate Exadata CS Scale Down from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]),
                                                                                                             resource.display_name))
                                     dbupdate = oci.database.models.UpdateDbSystemDetails()
                                     dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
@@ -889,17 +898,17 @@ def autoscale_region(region):
                                             success.append(" - Initiate Exadata DB Scale Down to {} at {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Exadata DB Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Exadata DB Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Exadata DB Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.cpu_core_count < int(schedulehours[CurrentHour]):
                                 if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate Exadata CS Scale UP from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
+                                    MakeOut(" - Initiate Exadata CS Scale UP from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
                                     dbupdate = oci.database.models.UpdateDbSystemDetails()
                                     dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
                                     Retry = True
@@ -910,12 +919,12 @@ def autoscale_region(region):
                                             success.append(" - Initiate Exadata DB BM Scale UP from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Exadata DB Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Exadata DB Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Exadata DB Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                 Retry = False
 
                     ###################################################################################
@@ -927,7 +936,7 @@ def autoscale_region(region):
                             if resourceDetails.lifecycle_state == "AVAILABLE" and int(schedulehours[CurrentHour]) > 0:
                                 if resourceDetails.cpus_enabled > int(schedulehours[CurrentHour]):
                                     if Action == "All" or Action == "Down":
-                                        MakeLog(" - Initiate ExadataC@C VM Cluster Scale Down to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
+                                        MakeOut(" - Initiate ExadataC@C VM Cluster Scale Down to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
                                         dbupdate = oci.database.models.UpdateVmClusterDetails()
                                         dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
                                         Retry = True
@@ -938,17 +947,17 @@ def autoscale_region(region):
                                                 success.append(" - Initiate ExadataC&C Cluster VM Scale Down from {} to {} for {}".format(resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) ExadataC&C Cluster VM Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) ExadataC&C Cluster VM Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                    MakeOut(" - Error ({}) ExadataC&C Cluster VM Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                     Retry = False
 
                                 if resourceDetails.cpus_enabled < int(schedulehours[CurrentHour]):
                                     if Action == "All" or Action == "Up":
-                                        MakeLog(
+                                        MakeOut(
                                             " - Initiate ExadataC@C VM Cluster Scale Up from {} to {} for {}".format(resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name))
                                         dbupdate = oci.database.models.UpdateVmClusterDetails()
                                         dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
@@ -960,12 +969,12 @@ def autoscale_region(region):
                                                 success.append(" - Initiate ExadataC&C Cluster VM Scale Up to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) ExadataC&C Cluster VM Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) ExadataC&C Cluster VM Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                    MakeOut(" - Error ({}) ExadataC&C Cluster VM Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpus_enabled, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                     Retry = False
 
                     ###################################################################################
@@ -978,7 +987,7 @@ def autoscale_region(region):
                             if resourceDetails.lifecycle_state == "AVAILABLE" and int(schedulehours[CurrentHour]) > 0:
                                 if resourceDetails.cpu_core_count > int(schedulehours[CurrentHour]):
                                     if Action == "All" or Action == "Down":
-                                        MakeLog(" - Initiate Autonomous DB Scale Down to {} for {}".format(int(schedulehours[CurrentHour]),
+                                        MakeOut(" - Initiate Autonomous DB Scale Down to {} for {}".format(int(schedulehours[CurrentHour]),
                                                                                                            resource.display_name))
                                         dbupdate = oci.database.models.UpdateAutonomousDatabaseDetails()
                                         dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
@@ -990,17 +999,17 @@ def autoscale_region(region):
                                                 success.append(" - Initiate Autonomous DB Scale Down from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) Autonomous DB Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) Autonomous DB Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                    MakeOut(" - Error ({}) Autonomous DB Scale Down from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                     Retry = False
 
                                 if resourceDetails.cpu_core_count < int(schedulehours[CurrentHour]):
                                     if Action == "All" or Action == "Up":
-                                        MakeLog(" - Initiate Autonomous DB Scale Up from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
+                                        MakeOut(" - Initiate Autonomous DB Scale Up from {} to {} for {}".format(resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name))
                                         dbupdate = oci.database.models.UpdateAutonomousDatabaseDetails()
                                         dbupdate.cpu_core_count = int(schedulehours[CurrentHour])
                                         Retry = True
@@ -1011,18 +1020,18 @@ def autoscale_region(region):
                                                 success.append(" - Initiate Autonomous DB Scale Up to {} for {}".format(int(schedulehours[CurrentHour]), resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) Autonomous DB Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) Autonomous DB Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                    MakeOut(" - Error ({}) Autonomous DB Scale Up from {} to {} for {} - {}".format(response.status, resourceDetails.cpu_core_count, int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                     Retry = False
 
                             # Autonomous DB is running request is to stop the database
                             if resourceDetails.lifecycle_state == "AVAILABLE" and int(schedulehours[CurrentHour]) == 0:
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Stoping Autonomous DB {}".format(resource.display_name))
+                                    MakeOut(" - Stoping Autonomous DB {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1031,19 +1040,19 @@ def autoscale_region(region):
                                             success.append(" - Initiate Autonomous DB Shutdown for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Autonomous DB Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Autonomous DB Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Autonomous DB Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.lifecycle_state == "STOPPED" and int(schedulehours[CurrentHour]) > 0:
                                 if Action == "All" or Action == "Up":
                                     # Autonomous DB is stopped and needs to be started with same amount of CPUs configured
                                     if resourceDetails.cpu_core_count == int(schedulehours[CurrentHour]):
-                                        MakeLog(" - Starting Autonomous DB {}".format(resource.display_name))
+                                        MakeOut(" - Starting Autonomous DB {}".format(resource.display_name))
                                         Retry = True
                                         while Retry:
                                             try:
@@ -1052,12 +1061,12 @@ def autoscale_region(region):
                                                 success.append(" - Initiate Autonomous DB Startup for {}".format(resource.display_name))
                                             except oci.exceptions.ServiceError as response:
                                                 if response.status == 429:
-                                                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                     time.sleep(RateLimitDelay)
                                                 else:
                                                     ErrorsFound = True
                                                     errors.append(" - Error ({}) Autonomous DB Startup for {} - {}".format(response.status, resource.display_name, response.message))
-                                                    MakeLog(" - Error ({}) Autonomous DB Startup for {} - {}".format(response.status, resource.display_name, response.message))
+                                                    MakeOut(" - Error ({}) Autonomous DB Startup for {} - {}".format(response.status, resource.display_name, response.message))
                                                     Retry = False
 
                                     # Autonomous DB is stopped and needs to be started, after that it requires CPU change
@@ -1075,7 +1084,7 @@ def autoscale_region(region):
                         if resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) == 0:
                             if Action == "All" or Action == "Down":
                                 success.append(" - Stopping instance pool {}".format(resource.display_name))
-                                MakeLog(" - Stopping instance pool {}".format(resource.display_name))
+                                MakeOut(" - Stopping instance pool {}".format(resource.display_name))
                                 Retry = True
                                 while Retry:
                                     try:
@@ -1084,18 +1093,18 @@ def autoscale_region(region):
                                         success.append(" - Stopping instance pool {}".format(resource.display_name))
                                     except oci.exceptions.ServiceError as response:
                                         if response.status == 429:
-                                            MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                            MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                             time.sleep(RateLimitDelay)
                                         else:
                                             ErrorsFound = True
                                             errors.append(" - Error ({}) Stopping instance pool for {} - {}".format(response.status, resource.display_name, response.message))
-                                            MakeLog(" - Error ({}) Stopping instance pool for {} - {}".format(response.status, resource.display_name, response.message))
+                                            MakeOut(" - Error ({}) Stopping instance pool for {} - {}".format(response.status, resource.display_name, response.message))
                                             Retry = False
 
                         # Scale up action on running instance pool
                         elif resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) > resourceDetails.size:
                             if Action == "All" or Action == "Up":
-                                MakeLog(" - Scaling up instance pool {} to {} instances".format(resource.display_name, int(schedulehours[CurrentHour])))
+                                MakeOut(" - Scaling up instance pool {} to {} instances".format(resource.display_name, int(schedulehours[CurrentHour])))
                                 pooldetails = oci.core.models.UpdateInstancePoolDetails()
                                 pooldetails.size = int(schedulehours[CurrentHour])
                                 Retry = True
@@ -1106,7 +1115,7 @@ def autoscale_region(region):
                                         success.append(" - Scaling up instance pool {} to {} instances".format(resource.display_name, int(schedulehours[CurrentHour])))
                                     except oci.exceptions.ServiceError as response:
                                         if response.status == 429:
-                                            MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                            MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                             time.sleep(RateLimitDelay)
                                         else:
                                             ErrorsFound = True
@@ -1116,7 +1125,7 @@ def autoscale_region(region):
                         # Scale down action on running instance pool
                         elif resourceDetails.lifecycle_state == "RUNNING" and int(schedulehours[CurrentHour]) < resourceDetails.size:
                             if Action == "All" or Action == "Down":
-                                MakeLog(" - Scaling down instance pool {} to {} instances".format(resource.display_name, int(schedulehours[CurrentHour])))
+                                MakeOut(" - Scaling down instance pool {} to {} instances".format(resource.display_name, int(schedulehours[CurrentHour])))
                                 pooldetails = oci.core.models.UpdateInstancePoolDetails()
                                 pooldetails.size = int(schedulehours[CurrentHour])
                                 Retry = True
@@ -1127,7 +1136,7 @@ def autoscale_region(region):
                                         success.append(" - Scaling down instance pool {} to {} instances".format(resource.display_name, int(schedulehours[CurrentHour])))
                                     except oci.exceptions.ServiceError as response:
                                         if response.status == 429:
-                                            MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                            MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                             time.sleep(RateLimitDelay)
                                         else:
                                             ErrorsFound = True
@@ -1139,7 +1148,7 @@ def autoscale_region(region):
                                 # Start instance pool with same amount of instances as configured
                                 if resourceDetails.size == int(schedulehours[CurrentHour]):
                                     success.append(" - Starting instance pool {} from stopped state".format(resource.display_name))
-                                    MakeLog(" - Starting instance pool {} from stopped state".format(resource.display_name))
+                                    MakeOut(" - Starting instance pool {} from stopped state".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1148,7 +1157,7 @@ def autoscale_region(region):
                                             success.append(" - Starting instance pool {} from stopped state".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
@@ -1169,7 +1178,7 @@ def autoscale_region(region):
                         if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
                             if resourceDetails.lifecycle_state == "ACTIVE" and int(schedulehours[CurrentHour]) == 0:
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate ODA shutdown for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate ODA shutdown for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1178,17 +1187,17 @@ def autoscale_region(region):
                                             success.append(" - Initiate ODA shutdown for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) ODA Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) ODA Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) ODA Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.lifecycle_state == "INACTIVE" and int(schedulehours[CurrentHour]) == 1:
                                 if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate ODA startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate ODA startup for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1197,12 +1206,12 @@ def autoscale_region(region):
                                             success.append(" - Initiate ODA startup for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) ODA startup for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) ODA startup for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) ODA startup for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                     ###################################################################################
@@ -1212,7 +1221,7 @@ def autoscale_region(region):
                         # Execute Shutdown operations
                         if int(schedulehours[CurrentHour]) == 0 and resourceDetails.lifecycle_state == "ACTIVE":
                             if Action == "All" or Action == "Down":
-                                MakeLog(" - Initiate Analytics shutdown for {}".format(resource.display_name))
+                                MakeOut(" - Initiate Analytics shutdown for {}".format(resource.display_name))
                                 Retry = True
                                 while Retry:
                                     try:
@@ -1221,19 +1230,19 @@ def autoscale_region(region):
                                         success.append(" - Initiate ODA shutdown for {}".format(resource.display_name))
                                     except oci.exceptions.ServiceError as response:
                                         if response.status == 429:
-                                            MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                            MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                             time.sleep(RateLimitDelay)
                                         else:
                                             ErrorsFound = True
                                             errors.append(" - Error ({}) Analytics Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                            MakeLog(" - Error ({}) Analytics Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                            MakeOut(" - Error ({}) Analytics Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                             Retry = False
 
                         # Execute Startup operations
                         if int(schedulehours[CurrentHour]) != 0 and resourceDetails.lifecycle_state == "INACTIVE":
                             if Action == "All" or Action == "Up":
                                 if int(resourceDetails.capacity.capacity_value) == int(schedulehours[CurrentHour]):
-                                    MakeLog(" - Initiate Analytics Startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Analytics Startup for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1242,12 +1251,12 @@ def autoscale_region(region):
                                             success.append(" - Initiate Analytics Startup for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Analytics Startup for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Analytics Startup for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Analytics Startup for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                                 # Execute Startup and scaling operations
@@ -1264,7 +1273,7 @@ def autoscale_region(region):
                                 errors.append(
                                     " - Error (Analytics instance with CPU count {} can not be scaled for instance: {}".format(int(resourceDetails.capacity.capacity_value),
                                                                                                                                resource.display_name))
-                                MakeLog(
+                                MakeOut(
                                     " - Error (Analytics instance with CPU count {} can not be scaled for instance: {}".format(int(resourceDetails.capacity.capacity_value),
                                                                                                                                resource.display_name))
                             goscale = False
@@ -1295,7 +1304,7 @@ def autoscale_region(region):
                                     goscale = True
 
                                 if goscale:
-                                    MakeLog(" - Initiate Analytics Scaling from {} to {}oCPU for {}".format(
+                                    MakeOut(" - Initiate Analytics Scaling from {} to {}oCPU for {}".format(
                                         int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]),
                                         resource.display_name))
                                     Retry = True
@@ -1307,16 +1316,16 @@ def autoscale_region(region):
                                                                                                                            int(schedulehours[CurrentHour]), resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Analytics scaling from {} to {}oCPU for {} - {}".format(response.status, int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]), resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Analytics scaling from {} to {}oCPU for {} - {}".format(response.status, int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]), resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Analytics scaling from {} to {}oCPU for {} - {}".format(response.status, int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]), resource.display_name, response.message))
                                                 Retry = False
                             else:
                                 errors.append(" - Error (Analytics scaling from {} to {}oCPU, invalid combination for {}".format(int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]), resource.display_name))
-                                MakeLog(" - Error (Analytics scaling from {} to {}oCPU, invalid combination for {}".format(int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]), resource.display_name))
+                                MakeOut(" - Error (Analytics scaling from {} to {}oCPU, invalid combination for {}".format(int(resourceDetails.capacity.capacity_value), int(schedulehours[CurrentHour]), resource.display_name))
 
                     ###################################################################################
                     # IntegrationInstance
@@ -1327,7 +1336,7 @@ def autoscale_region(region):
 
                             if resourceDetails.lifecycle_state == "ACTIVE" and int(schedulehours[CurrentHour]) == 0:
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate Integration Service shutdown for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Integration Service shutdown for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1336,17 +1345,17 @@ def autoscale_region(region):
                                             success.append(" - Initiate Integration Service shutdown for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Integration Service Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Integration Service Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Integration Service Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.lifecycle_state == "INACTIVE" and int(schedulehours[CurrentHour]) == 1:
                                 if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate Integration Service startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Integration Service startup for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1355,12 +1364,12 @@ def autoscale_region(region):
                                             success.append(" - Initiate Integration Service startup for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) Integration Service startup for {} - {}".format(response.message, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Integration Service startup for {} - {}".format(response.message, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) Integration Service startup for {} - {}".format(response.message, resource.display_name, response.message))
                                                 Retry = False
 
                     ###################################################################################
@@ -1382,28 +1391,28 @@ def autoscale_region(region):
                                 if Action == "All" or Action == "Down":
                                     details = oci.load_balancer.models.UpdateLoadBalancerShapeDetails()
                                     details.shape_name = "{}Mbps".format(requestedShape)
-                                    MakeLog(" - Downsizing loadbalancer from {} to {}".format(resourceDetails.shape_name, details.shape_name))
+                                    MakeOut(" - Downsizing loadbalancer from {} to {}".format(resourceDetails.shape_name, details.shape_name))
                                     try:
                                         loadbalancer.update_load_balancer_shape(load_balancer_id=resource.identifier, update_load_balancer_shape_details=details,
                                                                                 retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
                                     except oci.exceptions.ServiceError as response:
-                                        MakeLog(" - Error Downsizing: {}".format(response.message))
+                                        MakeOut(" - Error Downsizing: {}".format(response.message))
                                         errors.append(" - Error ({}) Integration Service startup for {}".format(response.message, resource.display_name))
 
                             if requestedShape > shape:
                                 if Action == "All" or Action == "Up":
                                     details = oci.load_balancer.models.UpdateLoadBalancerShapeDetails()
                                     details.shape_name = "{}Mbps".format(requestedShape)
-                                    MakeLog(" - Upsizing loadbalancer from {} to {}".format(resourceDetails.shape_name, details.shape_name))
+                                    MakeOut(" - Upsizing loadbalancer from {} to {}".format(resourceDetails.shape_name, details.shape_name))
                                     try:
                                         loadbalancer.update_load_balancer_shape(load_balancer_id=resource.identifier, update_load_balancer_shape_details=details,
                                                                                 retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
                                     except oci.exceptions.ServiceError as response:
-                                        MakeLog(" - Error Upsizing: {} ".format(response.message))
+                                        MakeOut(" - Error Upsizing: {} ".format(response.message))
                                         errors.append(" - Error ({}) Integration Service startup for {}".format(response.message, resource.display_name))
 
                         else:
-                            MakeLog(" - Error {}: requested shape {} does not exists".format(resource.display_name, requestedShape))
+                            MakeOut(" - Error {}: requested shape {} does not exists".format(resource.display_name, requestedShape))
 
                     ###################################################################################
                     # MysqlDBInstance
@@ -1412,7 +1421,7 @@ def autoscale_region(region):
                         if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
                             if resourceDetails.lifecycle_state == "ACTIVE" and int(schedulehours[CurrentHour]) == 0:
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate MySQL shutdown for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate MySQL shutdown for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1423,17 +1432,17 @@ def autoscale_region(region):
                                             success.append(" - Initiate MySql shutdown for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) MySQL Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) MySQL Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) MySQL Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.lifecycle_state == "INACTIVE" and int(schedulehours[CurrentHour]) == 1:
                                 if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate MySQL startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate MySQL startup for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1442,7 +1451,7 @@ def autoscale_region(region):
                                             success.append(" - Initiate MySQL startup for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
@@ -1456,7 +1465,7 @@ def autoscale_region(region):
                         if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
                             if resourceDetails.lifecycle_state == "ACTIVE" and int(schedulehours[CurrentHour]) == 0:
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate GoldenGate shutdown for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate GoldenGate shutdown for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1468,17 +1477,17 @@ def autoscale_region(region):
                                             success.append(" - Initiate GoldenGate shutdown for {}".format(resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
                                                 errors.append(" - Error ({}) GoldenGate Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) GoldenGate Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
+                                                MakeOut(" - Error ({}) GoldenGate Shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.lifecycle_state == "INACTIVE" and int(schedulehours[CurrentHour]) == 1:
                                 if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate GoldenGate startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate GoldenGate startup for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1490,7 +1499,7 @@ def autoscale_region(region):
                                             Retry = False
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
                                                 ErrorsFound = True
@@ -1505,7 +1514,7 @@ def autoscale_region(region):
                             if resourceDetails.lifecycle_state == "ACTIVE" and int(
                                     schedulehours[CurrentHour]) == 0:
                                 if Action == "All" or Action == "Down":
-                                    MakeLog(" - Initiate Data Integration Workspace shutdown for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Data Integration Workspace shutdown for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1515,7 +1524,7 @@ def autoscale_region(region):
                                                 resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(
                                                     RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
@@ -1523,14 +1532,14 @@ def autoscale_region(region):
                                                 errors.append(
                                                     " - Error ({}) Data Integration Workspace Shutdown for {} - {}".format(
                                                         response.status, resource.display_name, response.message))
-                                                MakeLog(" - Error ({}) Data Integration Shutdown for {} - {}".format(
+                                                MakeOut(" - Error ({}) Data Integration Shutdown for {} - {}".format(
                                                     response.status, resource.display_name, response.message))
                                                 Retry = False
 
                             if resourceDetails.lifecycle_state == "STOPPED" and int(
                                     schedulehours[CurrentHour]) == 1:
                                 if Action == "All" or Action == "Up":
-                                    MakeLog(" - Initiate Data Integration Workspace startup for {}".format(resource.display_name))
+                                    MakeOut(" - Initiate Data Integration Workspace startup for {}".format(resource.display_name))
                                     Retry = True
                                     while Retry:
                                         try:
@@ -1540,7 +1549,7 @@ def autoscale_region(region):
                                                 resource.display_name))
                                         except oci.exceptions.ServiceError as response:
                                             if response.status == 429:
-                                                MakeLog("Rate limit kicking in.. waiting {} seconds...".format(
+                                                MakeOut("Rate limit kicking in.. waiting {} seconds...".format(
                                                     RateLimitDelay))
                                                 time.sleep(RateLimitDelay)
                                             else:
@@ -1554,10 +1563,10 @@ def autoscale_region(region):
     ###################################################################################
     # Wait for any AutonomousDB and Instance Pool Start and rescale tasks completed
     ###################################################################################
-    MakeLog("Waiting for all threads to complete...")
+    MakeOut("Waiting for all threads to complete...")
     for t in threads:
         t.join()
-    MakeLog("Region {} Completed.".format(region))
+    MakeOut("Region {} Completed.".format(region))
 
 
 ##########################################################################
@@ -1605,8 +1614,8 @@ tenancy = None
 tenancy_home_region = ""
 
 try:
-    MakeLog("Starts at " + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    MakeLog("\nConnecting to Identity Service...")
+    MakeOut("Starts at " + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    MakeOut("\nConnecting to Identity Service...")
     identity = oci.identity.IdentityClient(config, signer=signer)
     tenancy = identity.get_tenancy(config["tenancy"]).data
     regions = identity.list_region_subscriptions(tenancy.id).data
@@ -1615,21 +1624,21 @@ try:
         if reg.is_home_region:
             tenancy_home_region = str(reg.region_name)
 
-    MakeLog("")
-    MakeLog("Version       : " + str(Version))
-    MakeLog("Command Line  : " + ' '.join(x for x in sys.argv[1:]))
-    MakeLog("Tenant Name   : " + str(tenancy.name))
-    MakeLog("Tenant Id     : " + tenancy.id)
-    MakeLog("Home Region   : " + tenancy_home_region)
-    MakeLog("Action        : " + Action)
-    MakeLog("Tag           : " + PredefinedTag)
+    MakeOut("")
+    MakeOut("Version       : " + str(Version))
+    MakeOut("Command Line  : " + ' '.join(x for x in sys.argv[1:]))
+    MakeOut("Tenant Name   : " + str(tenancy.name))
+    MakeOut("Tenant Id     : " + tenancy.id)
+    MakeOut("Home Region   : " + tenancy_home_region)
+    MakeOut("Action        : " + Action)
+    MakeOut("Tag           : " + PredefinedTag)
 
     if cmd.topic:
-        MakeLog("Topic         : " + cmd.topic)
+        MakeOut("Topic         : " + cmd.topic)
     if cmd.filter_region:
-        MakeLog("Filter Region : " + cmd.filter_region)
+        MakeOut("Filter Region : " + cmd.filter_region)
 
-    MakeLog("")
+    MakeOut("")
     compartments = identity_read_compartments(identity, tenancy)
 
 except Exception as e:
@@ -1690,7 +1699,7 @@ if cmd.topic:
     ns = oci.ons.NotificationDataPlaneClient(config, signer=signer)
 
     if LogLevel == "ALL" or (LogLevel == "ERRORS" and ErrorsFound):
-        MakeLog("\nPublishing notification")
+        MakeOut("\nPublishing notification")
         body_message = "Scaling ({}) just completed. Found {} errors across {} scaleable instances (from a total of {} instances). \nError Details: {}\n\nSuccess Details: {}".format(Action, len(errors), len(success), total_resources, errors, success)
         Retry = True
 
@@ -1700,10 +1709,10 @@ if cmd.topic:
                 Retry = False
             except oci.exceptions.ServiceError as ns_response:
                 if ns_response.status == 429:
-                    MakeLog("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
                     time.sleep(RateLimitDelay)
                 else:
-                    MakeLog("Error ({}) publishing notification - {}".format(ns_response.status, ns_response.message))
+                    MakeOut("Error ({}) publishing notification - {}".format(ns_response.status, ns_response.message))
                     Retry = False
 
-MakeLog("All scaling tasks done, checked {} resources.".format(total_resources))
+MakeOut("All scaling tasks done, checked {} resources.".format(total_resources))
