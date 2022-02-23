@@ -240,7 +240,7 @@ def MakeOut(msg, no_end=False):
 def MakeLog(msg, no_end=False):
     file_path = 'log.log'
     sys.stdout = open(file_path, "w")
-    print(msg)  
+    print(datetime.datetime.today().strftime('%d/%m/%Y %I:%M:%S.%f %p') + "\t" + msg)  
 
 ##########################################################################
 # isWeekDay
