@@ -791,39 +791,39 @@ def autoscale_region(region):
                             for dbnodedetails in dbnodes:
                                 if int(schedulehours[CurrentHour]) == 0 or int(schedulehours[CurrentHour]) == 1:
                                     if dbnodedetails.lifecycle_state == "AVAILABLE" and int(schedulehours[CurrentHour]) == 0:
-                                        if Action == "All" or Action == "Down":
-                                            MakeOut(" - Initiate DB VM shutdown for {}".format(resource.display_name))
-                                            Retry = True
-                                            while Retry:
-                                                try:
-                                                    response = database.db_node_action(db_node_id=dbnodedetails.id, action="STOP")
+                                        MakeOut(" - Initiate DB VM shutdown for {}".format(resource.display_name))
+                                        MakeLog("[STOP] DB VM {}".format(resource.display_name))
+                                        Retry = True
+                                        while Retry:
+                                            try:
+                                                response = database.db_node_action(db_node_id=dbnodedetails.id, action="STOP")
+                                                Retry = False
+                                                success.append(" - Initiate DB VM shutdown for {}".format(resource.display_name))
+                                            except oci.exceptions.ServiceError as response:
+                                                if response.status == 429:
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    time.sleep(RateLimitDelay)
+                                                else:
+                                                    ErrorsFound = True
+                                                    errors.append(" - Error ({}) DB VM shutdown for {} - {}".format(response.status, resource.display_name, response.message))
                                                     Retry = False
-                                                    success.append(" - Initiate DB VM shutdown for {}".format(resource.display_name))
-                                                except oci.exceptions.ServiceError as response:
-                                                    if response.status == 429:
-                                                        MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
-                                                        time.sleep(RateLimitDelay)
-                                                    else:
-                                                        ErrorsFound = True
-                                                        errors.append(" - Error ({}) DB VM shutdown for {} - {}".format(response.status, resource.display_name, response.message))
-                                                        Retry = False
                                     if dbnodedetails.lifecycle_state == "STOPPED" and int(schedulehours[CurrentHour]) == 1:
-                                        if Action == "All" or Action == "Up":
-                                            MakeOut(" - Initiate DB VM startup for {}".format(resource.display_name))
-                                            Retry = True
-                                            while Retry:
-                                                try:
-                                                    response = database.db_node_action(db_node_id=dbnodedetails.id, action="START")
+                                        MakeOut(" - Initiate DB VM startup for {}".format(resource.display_name))
+                                        MakeLog("[START] DB VM {}".format(resource.display_name))
+                                        Retry = True
+                                        while Retry:
+                                            try:
+                                                response = database.db_node_action(db_node_id=dbnodedetails.id, action="START")
+                                                Retry = False
+                                                success.append(" - Initiate DB VM startup for {}".format(resource.display_name))
+                                            except oci.exceptions.ServiceError as response:
+                                                if response.status == 429:
+                                                    MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
+                                                    time.sleep(RateLimitDelay)
+                                                else:
+                                                    ErrorsFound = True
+                                                    errors.append(" - Error ({}) DB VM startup for {} - {}".format(response.status, resource.display_name, response.message))
                                                     Retry = False
-                                                    success.append(" - Initiate DB VM startup for {}".format(resource.display_name))
-                                                except oci.exceptions.ServiceError as response:
-                                                    if response.status == 429:
-                                                        MakeOut("Rate limit kicking in.. waiting {} seconds...".format(RateLimitDelay))
-                                                        time.sleep(RateLimitDelay)
-                                                    else:
-                                                        ErrorsFound = True
-                                                        errors.append(" - Error ({}) DB VM startup for {} - {}".format(response.status, resource.display_name, response.message))
-                                                        Retry = False
 
                         ###################################################################################
                         # BM
